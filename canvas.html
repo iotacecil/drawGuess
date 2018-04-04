@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <meta name="viewport"
+          content = "height = device-height,
+                    width = device-width,
+                    initial-scale = 1.0,
+                    minimum-scale = 1.0,
+                    maximum-scale = 1.0,
+                    user-scalable=no"/>
+    <style>
+        .canvas{
+            left:200px;
+            display:block;
+            position: absolute;
+        }
+        #controller{
+            margin:0 auto;
+            width: 400px;
+        }
+        #clear_btn{
+            float: left;
+            margin:10px 0 0 10px;
+            width: 80px;
+            height: 40px;
+            line-height: 40px;
+            font-size:20px;
+            text-align: center;
+            border-radius: 5px 5px;
+            cursor:pointer;
+            background-color: aliceblue;
+            font-weight: bold;
+            font-family: "Microsoft YaHei UI";
+        }
+        #clear_btn:hover{
+            background-color:gainsboro;
+        }
+        .clearfix{
+            clear:both;
+        }
+    </style>
+</head>
+
+<body>
+<div id = "controller">
+<button onclick="conn(event)">conn</button>
+    <div id ="black_btn">黑 色</div>
+<div id = "clear_btn">清 除</div>
+    <div class = "clearfix"></div>
+</div>
+<!--当浏览器不支持canvas 标签内会被忽略-->
+<canvas id="canvas"  style="border: 1px solid red;">
+    当前浏览器不持支Canvas
+</canvas>
+<script>
+    function conn(event){
+        console.log(event)
+        if(window.WebSocket!= undefined){
+            var connection = new WebSocket('ws://localhost:3002')
+        }
+        connection.onopen = ws
+    }
+
+
+    var strokeColor = "black"
+    function changecolor() {
+        
+    }
+    window.onload= function(){
+        var canvasWidth = Math.min(800,window.innerWidth-20)
+        var canvasHeight = Math.min(800,window.innerHeight-20)
+        console.log(canvasHeight)
+        function clear_btn() {
+            context.clearRect(0,0,canvasWidth,canvasHeight)
+        }
+        var canvas = document.getElementById('canvas')
+        var clear_btn = document.getElementById('clear_btn')
+        clear_btn.onclick= function(event){
+            context.clearRect(0,0,canvasWidth,canvasHeight)
+        }
+        canvas.width=canvasWidth
+        canvas.height=canvasHeight
+        if(canvas.getContext("2d")) {
+            var context = canvas.getContext('2d')
+        }else{
+            alert("当前浏览器不支持canvas")
+        }
+        context.beginPath()
+        console.log(context)
+        //状态设置
+        context.moveTo(100,100)
+//        context.lineWidth=10
+        context.lineCap="squre"
+        context.lineTo(700,700)
+        //绘制
+        context.stroke()
+        context.closePath()
+        context.beginPath()
+        //colsePath不是封闭路径时 会自动封闭
+        for(var i = 0;i<10;i++){
+            context.beginPath()
+
+            context.arc(50+i*100,60,40,0,2*Math.PI*(i+1)/10)
+            context.fillStyle= "yellow"
+            context.fill()
+//            context.closePath()
+            context.stroke()
+
+        }
+        for(var i = 0;i<10;i++){
+            context.beginPath()
+            context.arc(50+i*100,200,40,0,2*Math.PI*(i+1)/10)
+//            context.closePath()
+            context.stroke()
+//            context.fill()
+        }
+
+        context.beginPath()
+        context.lineJoin="miter"
+        context.miterLimit=0.01
+        for(var i =0;i<5;i++){
+            context.lineTo(x=Math.cos((18+i*72)/180*Math.PI)*300+400,
+                y=-Math.sin((18+i*72)/180*Math.PI)*300+400)
+            context.lineTo(x=Math.cos((54+i*72)/180*Math.PI)*150+400,
+                y=-Math.sin((54+i*72)/180*Math.PI)*150+400)
+
+        }
+
+        context.stroke()
+        context.closePath()
+        context.save()
+        context.translate(100,100)
+        context.restore()
+
+
+//        context.fillStyle("rgb(2,100,30")
+//        context.fill()
+        var isMouseDown = false
+        function window2canvas(x,y){
+            var canvasbox = canvas.getBoundingClientRect()
+
+            return {x:Math.round(x-canvasbox.left),y:Math.round(y-canvasbox.top)}
+        }
+        
+        var lastLoc = {x:0,y:0}
+        var lastTimestamp = 0
+        var lastWidth = -1
+        var MAXWIDTH =10
+        function beginStroke(point) {
+            lastLoc = window2canvas(point.x,point.y)
+            lastTimestamp = new Date().getTime()
+            isMouseDown= true
+        }
+        function endStroke(){
+            isMouseDown = false
+        }
+        canvas.onmousedown=function (e) {
+            e.preventDefault()
+//            console.log(e)
+//            console.log(e.clientX)
+//            console.log(canvas.getBoundingClientRect())
+            beginStroke({x:e.clientX,y:e.clientY})
+        }
+        canvas.onmouseup=function (e) {
+            e.preventDefault()
+            endStroke()
+        }
+//按着画布出画布也是不想画
+        canvas.onmouseout=function (e) {
+            e.preventDefault()
+            endStroke()
+        }
+        function calculateDistance(loc1,loc2) {
+            return Math.sqrt((loc1.x-loc2.x)*(loc1.x-loc2.x)+(loc1.y-loc2.y)*(loc1.y-loc2.y))
+        }
+        function calLineWidth(t,s) {
+            var width
+            var speed = s/t
+            if(speed<=0.1)
+               width= MAXWIDTH
+            else if (speed>10) width = 1
+            else width = MAXWIDTH-(speed-0.1)/(10-0.1)*(MAXWIDTH-1)
+            console.log("变化"+(speed-0.1)/(10-0.1))
+            console.log(width)
+            if (lastWidth==-1)
+                return width
+            else width = lastWidth*4/5+width*1/5
+            lastWidth = width
+            return width
+        }
+        function moveStroke(point){
+            var curloc = window2canvas(point.x,point.y)
+            var curstamp = new Date().getTime()
+            var timedif = curstamp-lastTimestamp
+            var distance = calculateDistance(curloc,lastLoc)
+            context.beginPath()
+            context.moveTo(lastLoc.x,lastLoc.y)
+            context.lineTo(curloc.x,curloc.y)
+            context.lineCap = "round"
+            context.lineJoin = "round"
+            context.strokeStyle=strokeColor
+
+            context.lineWidth= calLineWidth(timedif,distance)
+            context.stroke()
+            lastLoc = curloc
+            lastTimestamp= curstamp
+        }
+        canvas.onmousemove=function (e) {
+            e.preventDefault()
+            if(isMouseDown== true){
+                moveStroke({x:e.clientX,y:e.clientY})
+
+            }
+        }
+        canvas.addEventListener("touchstart",function(e) {
+            e.preventDefault()
+            touch = e.touches[0]
+            console.log(e.touches)
+            console.log(typeof touch)
+
+            beginStroke({x:touch.pageX,y:touch.pageY})
+        })
+        canvas.addEventListener("touchmove",function(e){
+            e.preventDefault()
+            if(isMouseDown)
+            touch = e.touches[0]
+
+            moveStroke({x:touch.pageX,y:touch.pageY})
+        })
+        canvas.addEventListener("touchend",function(e){
+            e.preventDefault()
+            endStroke()
+
+
+        })
+    }
+
+</script>
+</body>
+</html>
